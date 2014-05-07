@@ -55,7 +55,7 @@ class CelestialBody (pygame.sprite.Sprite):
         """ Apply wall bouncing and velocity. """
         try:
             self.pre_tick()
-        except Exception:
+        except Exception as ex:
             pass
         self.wall_bounce()
         self.apply_velocity()
@@ -80,26 +80,36 @@ class Planet (CelestialBody):
     def __init__ (self, gs, x=500, y=500):
         super(Planet, self).__init__(gs, x, y)
         self.image = self.orig_image = pygame.image.load("planet.png")
+        self.mass = 10
+
+
+class Ship (CelestialBody):
+    def __init__ (self, gs, x=600, y=600):
+        super(Ship, self).__init__(gs, x, y)
+        self.image = self.orig_image = pygame.image.load("sprites/player1sprite.png")
         self.speed = 0.4
         self.mass = 10
         self.direction = 0 # in radians
-
-    def follow_mouse (self):
-        self.x, self.y = pygame.mouse.get_pos()
         
     def handle_input (self, x, y):
+        print "handling input"
         self.velx += x * self.speed
         self.vely += y * self.speed
 
     def pre_tick (self):
         mx, my = pygame.mouse.get_pos()
-        x_dist = mx - self.center[0]
-        y_dist = self.center[1] - my
+        x_dist = mx - self.x
+        y_dist = self.y - my
         self.direction = atan2(y_dist, x_dist)
 
     def pre_draw (self):
-        self.image = pygame.transform.rotate(self.orig_image, degrees(self.direction))
+        self.image = pygame.transform.rotate(self.orig_image, degrees(self.direction)) 
 
+
+class SpringCenter:
+    def __init__ (self, x, y):
+        self.x = x
+        self.y = y
 
 class Forces:
     def __init__ (self, gs):
@@ -189,7 +199,6 @@ class Forces:
 
         victim.velx += F/victim.mass * vecx - dampx
         victim.vely += F/victim.mass * vecy - dampy 
-        print "F: " + str(F)
 
     def wall_bounce (self, victim):
         pass
@@ -225,19 +234,11 @@ class GameSpace:
 
         # GAME OBJECTS
         self.clock = pygame.time.Clock()
+        self.forces = Forces(self)
 
-        # Asteroids
-        all_asteroids = [Asteroid(self), Asteroid(self, 100, 600), Asteroid(self, 600, 100)]
-
-        # Planets
-        player_one = Planet(self)
-        player_two = Planet(self, 700, 200)
-        player_two.apply_velocity = player_two.follow_mouse
-        all_planets = [player_one, player_two]
-
-        # Forces object
-        forces = Forces(self)
-        
+        all_asteroids = [Asteroid(self,600,100)]
+        all_planets = [Planet(self,100,700), Planet(self,800,100)]
+        player_one = Ship(self, 200, 200)
 
         # GAME LOOP
         while True:
@@ -260,19 +261,20 @@ class GameSpace:
                         player_one.handle_input(1, 0)
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                    forces.start_spring(player_one, all_asteroids[0], 100)
+                    self.forces.start_spring(player_one, all_asteroids[0], 100)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     pass
                     #forces.end_spring(player_one, all_asteroids[0])
                     
             # APPLY FORCES
-            forces.tick()
+            self.forces.tick()
 
             # NOTIFY TICKS
             for a in all_asteroids:
                 a.tick()
             for p in all_planets:
                 p.tick()
+            player_one.tick()
 
             # DISPLAY 
             self.screen.fill(self.black)
@@ -280,6 +282,7 @@ class GameSpace:
                 a.draw()
             for p in all_planets:
                 p.draw()
+            player_one.draw()
             
             pygame.display.flip()
 
