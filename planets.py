@@ -19,6 +19,7 @@ class CelestialBody (pygame.sprite.Sprite):
         self.y = y
         self.velx = self.vely = 0
         self.mass = 1
+        self.max_speed = 10
 
     def collide (self, other_body):
         """ Implement this in the subclasses to handle a collision. """
@@ -48,6 +49,14 @@ class CelestialBody (pygame.sprite.Sprite):
 
     def apply_velocity (self):
         """ Add velocity to position. """
+        if self.velx > self.max_speed:
+            self.velx = self.max_speed
+        elif self.velx < -self.max_speed:
+            self.velx = -self.max_speed
+        if self.vely > self.max_speed:
+            self.vely = self.max_speed
+        elif self.vely < -self.max_speed:
+            self.vely = -self.max_speed        
         self.x += self.velx
         self.y += self.vely
 
