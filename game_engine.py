@@ -7,6 +7,7 @@ import pygame
 import sys
 from math import atan2, degrees, sin, cos, pi, sqrt
 import collections
+from Queue import Queue
 
 class CelestialBody (pygame.sprite.Sprite):
     """ The base class for celestial bodies. Handles velocity, drawing, and wall bouncing."""
@@ -269,71 +270,107 @@ class Forces:
             self.apply_spring(source, victim, eq_dist)
 
 class GameSpace:
-    def main (self):
+    def setup (self, server=False):
         # BASIC INITIALIZATION
         pygame.init()
         pygame.mixer.init() 
         
         self.size = self.width, self.height = 1000, 800
         self.black = 0,0,0
-
-        self.screen = pygame.display.set_mode(self.size)
-
-        pygame.key.set_repeat(25, 25)
-
+        
+        if not server:
+            self.screen = pygame.display.set_mode(self.size)
+            pygame.key.set_repeat(25, 25)
+        
         # GAME OBJECTS
-        self.clock = pygame.time.Clock()
         self.forces = Forces(self)
+        
+        self.all_asteroids = [Asteroid(self,600,100)]
+        self.planet_one = Planet(self,100,700)
+        self.planet_two = Planet(self,800,100)
+        self.player_one = Ship(self, 200, 200)
+        self.player_two = Ship(self, 600, 600)
 
-        all_asteroids = [Asteroid(self,600,100)]
-        all_planets = [Planet(self,100,700), Planet(self,800,100)]
-        player_one = Ship(self, 200, 200)
-        #player_one.apply_velocity = player_one.follow_mouse
+        self.queue = Queue()
 
-        # GAME LOOP
-        while True:
-            # CLOCK TICK REGULATION
-            self.clock.tick(60)
+    def get_game_description (self):
+        description = {}
+        description['player_one'] = {'x': self.player_one.x,
+                                     'y': self.player_one.y,
+                                     'angle': self.player_one.direction}
+        description['player_two'] = {'x': self.player_two.x,
+                                     'y': self.player_two.y,
+                                     'angle': self.player_two.direction}
+        description['planet_one'] = {'x': self.planet_one.x,
+                                     'y': self.planet_one.y}
+        description['planet_two'] = {'x': self.planet_two.x,
+                                     'y': self.planet_two.y}
+        description['asteroids'] = [{'x':a.x, 'y':a.y} for a in self.all_asteroids]
+        return description
 
-            # HANDLE USER INPUT
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
+    def game_loop (self):
+        # HANDLE USER INPUT
+        """
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+            sys.exit()
                 
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_UP:
-                        player_one.handle_input(0, -1)
-                    elif event.key == pygame.K_DOWN:
-                        player_one.handle_input(0, 1)
-                    elif event.key == pygame.K_LEFT:
-                        player_one.handle_input(-1, 0)
-                    elif event.key == pygame.K_RIGHT:
-                        player_one.handle_input(1, 0)
-
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    player_one.lock_asteroid(all_asteroids[0])
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    player_one.unlock_asteroid()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    player_one.handle_input(0, -1)
+                elif event.key == pygame.K_DOWN:
+                    player_one.handle_input(0, 1)
+                elif event.key == pygame.K_LEFT:
+                    player_one.handle_input(-1, 0)
+                elif event.key == pygame.K_RIGHT:
+                    player_one.handle_input(1, 0)
                     
-            # APPLY FORCES
-            self.forces.tick()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                player_one.lock_asteroid(all_asteroids[0])
+            elif event.type == pygame.MOUSEBUTTONUP:
+                player_one.unlock_asteroid()
+                """
+        while not self.queue.empty():
+            event = self.queue.get()
+            if event['type'] == 'QUIT':
+                pass
+            #sys.exit()
+                
+            elif event['type'] == 'KEYDOWN':
+                if event['key'] == 'K_UP':
+                    player_one.handle_input(0, -1)
+                elif event['key'] == 'K_DOWN':
+                    player_one.handle_input(0, 1)
+                elif event['key'] == 'K_LEFT':
+                    player_one.handle_input(-1, 0)
+                elif event['key'] == 'K_RIGHT':
+                    player_one.handle_input(1, 0)
+                    
+            elif event['type'] == 'MOUSEBUTTONDOWN':
+                player_one.lock_asteroid(all_asteroids[0])
+            elif event['type'] == 'MOUSEBUTTONUP':
+                player_one.unlock_asteroid()            
+                    
+        # APPLY FORCES
+        self.forces.tick()
+        
+        # NOTIFY TICKS
+        for a in self.all_asteroids:
+            a.tick()
+        self.planet_one.tick()
+        self.planet_two.tick()
+        self.player_one.tick()
+        self.player_two.tick()
 
-            # NOTIFY TICKS
-            for a in all_asteroids:
-                a.tick()
-            for p in all_planets:
-                p.tick()
-            player_one.tick()
-
-            # DISPLAY 
-            self.screen.fill(self.black)
-            for a in all_asteroids:
-                a.draw()
-            for p in all_planets:
-                p.draw()
-            player_one.draw()
+        # DISPLAY 
+        #self.screen.fill(self.black)
+        #for a in self.all_asteroids:
+            #a.draw()
+        #for p in self.all_planets:
+            #p.draw()
+        #self.player_one.draw()
             
-            pygame.display.flip()
+        #pygame.display.flip()
 
 
 if __name__ == "__main__":
